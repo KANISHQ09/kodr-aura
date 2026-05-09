@@ -1,0 +1,42 @@
+{
+  "name": "vidask-ai-backend",
+  "private": true,
+  "version": "1.3.0",
+  "description": "VidAsk AI backend for uploaded and public video transcript analysis",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "start-watch": "node --inspect --watch-path=./ ./server.js",
+    "dev": "nodemon server.js",
+    "worker:video": "node src/workers/videoProcessing.worker.js",
+    "lint": "eslint ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@google-cloud/storage": "^7.19.0",
+    "bullmq": "^5.76.6",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.1.0",
+    "mongoose": "^9.0.1",
+    "morgan": "^1.10.1",
+    "redis": "^5.12.1",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^16.5.0",
+    "nodemon": "^3.1.11"
+  }
+}

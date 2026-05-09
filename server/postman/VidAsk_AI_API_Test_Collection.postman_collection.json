@@ -1,0 +1,2293 @@
+{
+  "info": {
+    "_postman_id": "2a405f75-8f86-4960-8b7f-8f86f75a1111",
+    "name": "VidAsk AI - Full API Test Suite",
+    "description": "Complete Postman Collection v2.1 for VidAsk AI backend APIs. Import this collection and the included VidAsk_AI_Local environment file, select that environment, keep BASE_URL as http://localhost:3000 or change it to your server URL, then run the collection from top to bottom. IDs such as videoId, uploadVideoId, publicVideoId, and assistantTranscriptId are stored automatically as environment variables by test scripts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sampleTranscript",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "missingMongoId",
+      "value": "64f000000000000000000000",
+      "type": "string"
+    },
+    {
+      "key": "videoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "uploadVideoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "publicVideoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "publicNoTranscriptId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assistantTranscriptId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assistantIndexTranscriptId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('runId')) {",
+          "  pm.environment.set('runId', Date.now().toString());",
+          "}",
+          "if (!pm.environment.get('missingMongoId')) {",
+          "  pm.environment.set('missingMongoId', '64f000000000000000000000');",
+          "}",
+          "if (!pm.environment.get('sampleTranscript')) {",
+          "  pm.environment.set('sampleTranscript', 'Welcome to VidAsk AI. In the first minute we explain how transcript indexing works. Around the second minute we discuss summaries, topic breakdowns, and timestamps. Later we cover question answering, context retrieval, playback links, and session cleanup for a video learning companion. The final section explains how learners can ask precise questions and receive grounded answers from the transcript.');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response time is under 5000ms', function () {",
+          "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Response does not leak passwordHash', function () {",
+          "  pm.expect(pm.response.text()).to.not.include('passwordHash');",
+          "});",
+          "",
+          "const contentType = pm.response.headers.get('Content-Type') || '';",
+          "if (contentType.includes('application/json')) {",
+          "  var json = pm.response.json();",
+          "  pm.test('JSON response has a recognizable shape', function () {",
+          "    pm.expect(json).to.be.an('object');",
+          "    pm.expect(json.message || json.status || json.success !== undefined).to.exist;",
+          "  });",
+          "  if (Object.prototype.hasOwnProperty.call(json, 'success')) {",
+          "    pm.test('API envelope contains success and message', function () {",
+          "      pm.expect(json).to.have.property('success');",
+          "      pm.expect(json).to.have.property('message');",
+          "    });",
+          "  }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Environment Setup",
+      "item": [
+        {
+          "name": "Reset run variables + Health Check",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = Date.now().toString();",
+                  "pm.environment.set('runId', runId);",
+                  "pm.environment.set('sampleTranscript', 'Welcome to VidAsk AI. In the first minute we explain how transcript indexing works. Around the second minute we discuss summaries, topic breakdowns, and timestamps. Later we cover question answering, context retrieval, playback links, and session cleanup for a video learning companion. The final section explains how learners can ask precise questions and receive grounded answers from the transcript.');",
+                  "pm.environment.set('missingMongoId', '64f000000000000000000000');",
+                  "['videoId', 'uploadVideoId', 'publicVideoId', 'publicNoTranscriptId', 'assistantTranscriptId', 'assistantIndexTranscriptId'].forEach(function (key) {",
+                  "  pm.environment.unset(key);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Backend is reachable', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Health response identifies VidAsk backend', function () {",
+                  "  pm.expect(json.message).to.include('VidAsk AI backend is running');",
+                  "});",
+                  "pm.test('Run id was initialized', function () { pm.expect(pm.environment.get('runId')).to.not.be.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/",
+              "host": [
+                "{{BASE_URL}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Uploaded Videos",
+      "item": [
+        {
+          "name": "Happy Path",
+          "item": [
+            {
+              "name": "Create transcript-backed uploaded video",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 201', function () { pm.expect(pm.response.code).to.equal(201); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Uploaded transcript video is ready', function () {",
+                      "  pm.expect(json.data).to.have.property('_id');",
+                      "  pm.expect(json.data.status).to.eql('ready');",
+                      "  pm.expect(json.data.chunks).to.be.an('array').that.is.not.empty;",
+                      "  pm.expect(json.data.summary).to.exist;",
+                      "});",
+                      "pm.environment.set('videoId', json.data._id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Postman Uploaded Transcript {{runId}}\",\n  \"transcriptSegments\": [\n    {\n      \"start\": 0,\n      \"end\": 60,\n      \"text\": \"Welcome to VidAsk AI. This opening section explains transcript indexing and how uploaded videos become searchable learning sessions.\"\n    },\n    {\n      \"start\": 61,\n      \"end\": 180,\n      \"text\": \"The middle section covers automatic summaries, topic breakdowns, timestamp extraction, and context retrieval from transcript chunks.\"\n    },\n    {\n      \"start\": 181,\n      \"end\": 360,\n      \"text\": \"The final section explains question answering, playback links, session cleanup, and how learners receive grounded answers from the transcript.\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Upload raw video bytes",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 201', function () { pm.expect(pm.response.code).to.equal(201); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Raw upload returns a video record', function () {",
+                      "  pm.expect(json.data).to.have.property('_id');",
+                      "  pm.expect(['transcript_required', 'processing', 'ready']).to.include(json.data.status);",
+                      "});",
+                      "pm.environment.set('uploadVideoId', json.data._id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "video/mp4"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/upload?title=Postman%20Raw%20Upload%20{{runId}}&fileName=postman-{{runId}}.mp4",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "upload"
+                  ],
+                  "query": [
+                    {
+                      "key": "title",
+                      "value": "Postman Raw Upload {{runId}}"
+                    },
+                    {
+                      "key": "fileName",
+                      "value": "postman-{{runId}}.mp4"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "FAKE_MP4_BYTES_FOR_POSTMAN_TEST_{{runId}}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Attach transcript to raw uploaded video",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Uploaded video is ready after transcript attach', function () {",
+                      "  pm.expect(json.data._id).to.eql(pm.environment.get('uploadVideoId'));",
+                      "  pm.expect(json.data.status).to.eql('ready');",
+                      "  pm.expect(json.data.chunks).to.be.an('array').that.is.not.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/{{uploadVideoId}}/transcript",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "{{uploadVideoId}}",
+                    "transcript"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"transcriptText\": \"{{sampleTranscript}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "List uploaded videos",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('List response has pagination fields', function () {",
+                      "  pm.expect(json.data.data).to.be.an('array');",
+                      "  pm.expect(json.data).to.include.keys(['total', 'page', 'totalPages']);",
+                      "});",
+                      "pm.test('Created uploaded video appears in list', function () {",
+                      "  const ids = json.data.data.map(function (video) { return video._id; });",
+                      "  pm.expect(ids).to.include(pm.environment.get('videoId'));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos?page=1&limit=10",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "List uploaded videos filtered by ready status",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('All returned uploaded videos are ready', function () {",
+                      "  json.data.data.forEach(function (video) { pm.expect(video.status).to.eql('ready'); });",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos?status=ready&limit=10",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "ready"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Search uploaded videos by title",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Search returns matching title', function () {",
+                      "  pm.expect(json.data.data.length).to.be.above(0);",
+                      "  pm.expect(json.data.data[0].title).to.include('Postman Uploaded Transcript');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos?search=Postman%20Uploaded%20Transcript%20{{runId}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "Postman Uploaded Transcript {{runId}}"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get uploaded video by id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Fetched uploaded video matches stored id', function () {",
+                      "  pm.expect(json.data._id).to.eql(pm.environment.get('videoId'));",
+                      "  pm.expect(json.data.transcriptSegments).to.be.an('array').that.is.not.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/{{videoId}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "{{videoId}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get uploaded video summary",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Summary response includes summary and topic breakdown', function () {",
+                      "  pm.expect(json.data).to.have.property('summary');",
+                      "  pm.expect(json.data).to.have.property('topicBreakdown');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/{{videoId}}/summary",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "{{videoId}}",
+                    "summary"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get uploaded video last five minutes recap",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Last five minutes recap is returned', function () {",
+                      "  pm.expect(json.data).to.be.an('object');",
+                      "  pm.expect(JSON.stringify(json.data).length).to.be.above(2);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/{{videoId}}/last-five-minutes",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "{{videoId}}",
+                    "last-five-minutes"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Ask question about uploaded video",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Answer contains grounded fields', function () {",
+                      "  pm.expect(json.data).to.include.keys(['question', 'answer', 'timestamps', 'context']);",
+                      "  pm.expect(json.data.answer).to.be.a('string').and.not.empty;",
+                      "  pm.expect(json.data.context).to.be.an('array');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/{{videoId}}/ask",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "{{videoId}}",
+                    "ask"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"question\": \"What does the video explain about question answering?\",\n  \"history\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get playback URL for raw uploaded video",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Playback response includes URL/storage provider', function () {",
+                      "  pm.expect(json.data).to.include.keys(['id', 'title', 'url', 'storageProvider']);",
+                      "  pm.expect(json.data.id).to.eql(pm.environment.get('uploadVideoId'));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/{{uploadVideoId}}/playback-url",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "{{uploadVideoId}}",
+                    "playback-url"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Negative Tests",
+          "item": [
+            {
+              "name": "Create uploaded video without title",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 422 validation error', function () { pm.expect(pm.response.code).to.equal(422); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });",
+                      "pm.test('Validation errors are present', function () { pm.expect(json.errors || json.message).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"transcriptText\": \"{{sampleTranscript}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Ask uploaded video without question",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 422 validation error', function () { pm.expect(pm.response.code).to.equal(422); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });",
+                      "pm.test('Validation errors are present', function () { pm.expect(json.errors || json.message).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/{{videoId}}/ask",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "{{videoId}}",
+                    "ask"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"history\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get uploaded video with invalid Mongo id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 422 validation error', function () { pm.expect(pm.response.code).to.equal(422); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });",
+                      "pm.test('Validation errors are present', function () { pm.expect(json.errors || json.message).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/not-a-mongo-id",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "not-a-mongo-id"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get missing uploaded video",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 404 not found', function () { pm.expect(pm.response.code).to.equal(404); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/videos/{{missingMongoId}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "videos",
+                    "{{missingMongoId}}"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Public Videos",
+      "item": [
+        {
+          "name": "Happy Path",
+          "item": [
+            {
+              "name": "Analyze public direct video with transcript",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 201', function () { pm.expect(pm.response.code).to.equal(201); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Public video analysis is ready', function () {",
+                      "  pm.expect(json.data).to.have.property('_id');",
+                      "  pm.expect(json.data.status).to.eql('ready');",
+                      "  pm.expect(json.data.platform).to.eql('direct_video');",
+                      "});",
+                      "pm.environment.set('publicVideoId', json.data._id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/analyze",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "analyze"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sourceUrl\": \"https://example.com/postman-{{runId}}.mp4\",\n  \"title\": \"Postman Public Video {{runId}}\",\n  \"forceRefresh\": true,\n  \"transcriptText\": \"{{sampleTranscript}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "List public video analyses",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('List response has pagination fields', function () {",
+                      "  pm.expect(json.data.data).to.be.an('array');",
+                      "  pm.expect(json.data).to.include.keys(['total', 'page', 'totalPages']);",
+                      "});",
+                      "pm.test('Created public analysis appears in list', function () {",
+                      "  const ids = json.data.data.map(function (video) { return video._id; });",
+                      "  pm.expect(ids).to.include(pm.environment.get('publicVideoId'));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos?page=1&limit=10",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "List public analyses filtered by platform",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('All returned public analyses match filters', function () {",
+                      "  json.data.data.forEach(function (video) {",
+                      "    pm.expect(video.platform).to.eql('direct_video');",
+                      "    pm.expect(video.status).to.eql('ready');",
+                      "  });",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos?platform=direct_video&status=ready&limit=10",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos"
+                  ],
+                  "query": [
+                    {
+                      "key": "platform",
+                      "value": "direct_video"
+                    },
+                    {
+                      "key": "status",
+                      "value": "ready"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get public video by id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Fetched public video matches stored id', function () { pm.expect(json.data._id).to.eql(pm.environment.get('publicVideoId')); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/{{publicVideoId}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "{{publicVideoId}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get public video summary",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Public summary includes status and topic breakdown', function () { pm.expect(json.data).to.include.keys(['summary', 'topicBreakdown', 'status']); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/{{publicVideoId}}/summary",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "{{publicVideoId}}",
+                    "summary"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get public video last five minutes recap",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Public recap is returned', function () { pm.expect(json.data).to.be.an('object'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/{{publicVideoId}}/last-five-minutes",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "{{publicVideoId}}",
+                    "last-five-minutes"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Ask question about public video",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Public video answer contains grounded fields', function () {",
+                      "  pm.expect(json.data).to.include.keys(['question', 'answer', 'timestamps', 'context']);",
+                      "  pm.expect(json.data.answer).to.be.a('string').and.not.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/{{publicVideoId}}/ask",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "{{publicVideoId}}",
+                    "ask"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"question\": \"What does the video say about summaries and timestamps?\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Negative Tests",
+          "item": [
+            {
+              "name": "Analyze public video without sourceUrl",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 422 validation error', function () { pm.expect(pm.response.code).to.equal(422); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });",
+                      "pm.test('Validation errors are present', function () { pm.expect(json.errors || json.message).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/analyze",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "analyze"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Missing source URL\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Analyze public video with invalid URL",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 422 validation error', function () { pm.expect(pm.response.code).to.equal(422); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });",
+                      "pm.test('Validation errors are present', function () { pm.expect(json.errors || json.message).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/analyze",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "analyze"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sourceUrl\": \"not-a-url\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Analyze public video without transcript",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 201', function () { pm.expect(pm.response.code).to.equal(201); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Public analysis requires transcript', function () { pm.expect(json.data.status).to.eql('transcript_required'); });",
+                      "pm.environment.set('publicNoTranscriptId', json.data._id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/analyze",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "analyze"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sourceUrl\": \"https://example.com/no-transcript-{{runId}}.mp4\",\n  \"title\": \"No Transcript {{runId}}\",\n  \"forceRefresh\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Ask public video before transcript exists",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 422 because transcript is required', function () { pm.expect(pm.response.code).to.equal(422); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });",
+                      "pm.test('Error mentions transcript', function () { pm.expect(json.message).to.include('Transcript is required'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/{{publicNoTranscriptId}}/ask",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "{{publicNoTranscriptId}}",
+                    "ask"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"question\": \"Can I ask yet?\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get public video with invalid Mongo id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 422 validation error', function () { pm.expect(pm.response.code).to.equal(422); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });",
+                      "pm.test('Validation errors are present', function () { pm.expect(json.errors || json.message).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/not-a-mongo-id",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "not-a-mongo-id"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get missing public video",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 404 not found', function () { pm.expect(pm.response.code).to.equal(404); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/v1/public-videos/{{missingMongoId}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "public-videos",
+                    "{{missingMongoId}}"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Embeddable Video Assistant API",
+      "item": [
+        {
+          "name": "Happy Path",
+          "item": [
+            {
+              "name": "Transcribe assistant session from transcript text",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 201', function () { pm.expect(pm.response.code).to.equal(201); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Assistant transcript response contains ids', function () {",
+                      "  pm.expect(json.data).to.include.keys(['transcript_id', 'index_id', 'source_type', 'status', 'chunk_count']);",
+                      "  pm.expect(json.data.source_type).to.eql('uploaded_video');",
+                      "  pm.expect(json.data.status).to.eql('ready');",
+                      "});",
+                      "pm.environment.set('assistantTranscriptId', json.data.transcript_id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/transcribe",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transcribe"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Assistant Transcript {{runId}}\",\n  \"transcriptText\": \"{{sampleTranscript}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Chunk-index assistant transcript",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 201', function () { pm.expect(pm.response.code).to.equal(201); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Chunk index response contains transcript id and chunks', function () {",
+                      "  pm.expect(json.data).to.include.keys(['index_id', 'transcript_id', 'source_type', 'status', 'chunk_count']);",
+                      "  pm.expect(json.data.chunk_count).to.be.above(0);",
+                      "});",
+                      "pm.environment.set('assistantIndexTranscriptId', json.data.transcript_id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/chunk-index",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chunk-index"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Assistant Chunk Index {{runId}}\",\n  \"transcriptSegments\": [\n    {\n      \"start\": 0,\n      \"end\": 60,\n      \"text\": \"Welcome to VidAsk AI. This opening section explains transcript indexing and how uploaded videos become searchable learning sessions.\"\n    },\n    {\n      \"start\": 61,\n      \"end\": 180,\n      \"text\": \"The middle section covers automatic summaries, topic breakdowns, timestamp extraction, and context retrieval from transcript chunks.\"\n    },\n    {\n      \"start\": 181,\n      \"end\": 360,\n      \"text\": \"The final section explains question answering, playback links, session cleanup, and how learners receive grounded answers from the transcript.\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Ask assistant question",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Assistant answer contains transcript id and context', function () {",
+                      "  pm.expect(json.data.transcript_id).to.eql(pm.environment.get('assistantTranscriptId'));",
+                      "  pm.expect(json.data.answer).to.be.a('string').and.not.empty;",
+                      "  pm.expect(json.data.context).to.be.an('array');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/ask",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "ask"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"transcript_id\": \"{{assistantTranscriptId}}\",\n  \"source_type\": \"uploaded_video\",\n  \"question\": \"How does VidAsk answer questions?\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Ask assistant question as SSE stream",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('SSE response includes token and done events', function () {",
+                      "  var text = pm.response.text();",
+                      "  pm.expect(text).to.include('event: token');",
+                      "  pm.expect(text).to.include('event: done');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/ask/stream",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "ask",
+                    "stream"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"transcript_id\": \"{{assistantTranscriptId}}\",\n  \"source_type\": \"uploaded_video\",\n  \"question\": \"Stream the answer about topic breakdowns.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get assistant summary",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Assistant summary includes transcript id and summary', function () {",
+                      "  pm.expect(json.data.transcript_id).to.eql(pm.environment.get('assistantTranscriptId'));",
+                      "  pm.expect(json.data).to.have.property('summary');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/summary?transcript_id={{assistantTranscriptId}}&source_type=uploaded_video",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "summary"
+                  ],
+                  "query": [
+                    {
+                      "key": "transcript_id",
+                      "value": "{{assistantTranscriptId}}"
+                    },
+                    {
+                      "key": "source_type",
+                      "value": "uploaded_video"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get assistant playback URL using raw uploaded video id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Assistant playback URL is returned', function () {",
+                      "  pm.expect(json.data.transcript_id).to.eql(pm.environment.get('uploadVideoId'));",
+                      "  pm.expect(json.data).to.have.property('url');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/playback-url?transcript_id={{uploadVideoId}}&source_type=uploaded_video",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "playback-url"
+                  ],
+                  "query": [
+                    {
+                      "key": "transcript_id",
+                      "value": "{{uploadVideoId}}"
+                    },
+                    {
+                      "key": "source_type",
+                      "value": "uploaded_video"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Clear assistant session Q&A history",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                      "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                      "",
+                      "pm.test('Session Q&A history was cleared', function () { pm.expect(json.data.cleared).to.eql(true); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/session",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "session"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"transcript_id\": \"{{assistantTranscriptId}}\",\n  \"source_type\": \"uploaded_video\",\n  \"deleteTranscript\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Negative Tests",
+          "item": [
+            {
+              "name": "Transcribe without URL or transcript",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 400 service validation error', function () { pm.expect(pm.response.code).to.equal(400); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/transcribe",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transcribe"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Invalid assistant transcript\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Ask assistant without question",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 422 validation error', function () { pm.expect(pm.response.code).to.equal(422); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });",
+                      "pm.test('Validation errors are present', function () { pm.expect(json.errors || json.message).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/ask",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "ask"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"transcript_id\": \"{{assistantTranscriptId}}\",\n  \"source_type\": \"uploaded_video\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get assistant summary without transcript id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 422 validation error', function () { pm.expect(pm.response.code).to.equal(422); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });",
+                      "pm.test('Validation errors are present', function () { pm.expect(json.errors || json.message).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/summary?source_type=uploaded_video",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "summary"
+                  ],
+                  "query": [
+                    {
+                      "key": "source_type",
+                      "value": "uploaded_video"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get assistant playback for public video",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 400 because public playback is unsupported', function () { pm.expect(pm.response.code).to.equal(400); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/playback-url?transcript_id={{publicVideoId}}&source_type=public_video",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "playback-url"
+                  ],
+                  "query": [
+                    {
+                      "key": "transcript_id",
+                      "value": "{{publicVideoId}}"
+                    },
+                    {
+                      "key": "source_type",
+                      "value": "public_video"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Ask assistant with missing transcript id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Status is 404 not found', function () { pm.expect(pm.response.code).to.equal(404); });",
+                      "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/ask",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "ask"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"transcript_id\": \"{{missingMongoId}}\",\n  \"source_type\": \"uploaded_video\",\n  \"question\": \"Does this exist?\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Cleanup",
+      "item": [
+        {
+          "name": "Delete transcript-backed uploaded video",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                  "",
+                  "pm.test('Uploaded video was deleted', function () { pm.expect(json.data).to.equal(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/videos/{{videoId}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "videos",
+                "{{videoId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify uploaded video delete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status is 404 not found', function () { pm.expect(pm.response.code).to.equal(404); });",
+                  "pm.test('Request failed as expected', function () { pm.expect(json.success).to.eql(false); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/videos/{{videoId}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "videos",
+                "{{videoId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete raw uploaded video",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                  "",
+                  "pm.test('Raw uploaded video was deleted', function () { pm.expect(json.data).to.equal(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/videos/{{uploadVideoId}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "videos",
+                "{{uploadVideoId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete public video analysis",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                  "",
+                  "pm.test('Public analysis was deleted', function () { pm.expect(json.data).to.equal(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/public-videos/{{publicVideoId}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public-videos",
+                "{{publicVideoId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete no-transcript public analysis",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                  "",
+                  "pm.test('No-transcript public analysis was deleted', function () { pm.expect(json.data).to.equal(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/public-videos/{{publicNoTranscriptId}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public-videos",
+                "{{publicNoTranscriptId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete assistant transcript session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                  "",
+                  "pm.test('Assistant transcript was deleted', function () { pm.expect(json.data.deleted).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/session",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "session"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transcript_id\": \"{{assistantTranscriptId}}\",\n  \"source_type\": \"uploaded_video\",\n  \"deleteTranscript\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete assistant chunk-index transcript session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "pm.test('Request succeeded', function () { pm.expect(json.success).to.eql(true); });",
+                  "",
+                  "pm.test('Assistant chunk index transcript was deleted', function () { pm.expect(json.data.deleted).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/session",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "session"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transcript_id\": \"{{assistantIndexTranscriptId}}\",\n  \"source_type\": \"uploaded_video\",\n  \"deleteTranscript\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
